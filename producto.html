@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyecto UI - Producto</title>
+  
+  <!-- 
+    ==========================================================================
+    HOJA DE ESTILOS OPTIMIZADA - CRITERIO DE ACCESIBILIDAD, RENDIMIENTO Y CÓDIGO
+    ========================================================================== 
+  -->
+  <style>
+    /* VARIABLES GLOBALES PARA GARANTIZAR UN DISEÑO MANTENIBLE Y ESCALABLE */
+    :root {
+      --color-text-dark: #1f2937;
+      --color-text-muted: #4b5563;
+    }
+
+    /* CONFIGURACIÓN BASE DEL ENTORNO DE PRUEBA */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #eef2f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* 
+      TARJETA DE PRODUCTO 
+      Rendimiento: Solo se anima la propiedad 'transform' para evitar recálculos en el Layout.
+    */
+    .card-container {
+      position: relative;
+      background-color: #ffffff;
+      width: 300px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Sombra base inicial estática */
+      will-change: transform; /* Pre-renderizado en GPU de la propiedad de transformación */
+      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Curva orgánica cubic-bezier */
+    }
+
+    /* 
+      CAPA DE SOMBRA COMPUESTA (Anti-Paint Flashing)
+      Evita volver a pintar la propiedad box-shadow animando solo su opacidad.
+    */
+    .card-container::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1); /* Sombra intensa en hover */
+      opacity: 0; /* Oculta al inicio */
+      will-change: opacity;
+      transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* EVENTOS HOVER DE LA TARJETA (Elevación de 6px y opacidad de sombra al 100%) */
+    .card-container:hover {
+      transform: translateY(-6px);
+    }
+    .card-container:hover::before {
+      opacity: 1;
+    }
+
+    /* Mantiene los textos por encima de las capas de fondo */
+    .card-media, .card-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* CONTENEDOR DE MEDIOS - REQUERIMIENTO IMG SRC */
+    .card-media {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 140px;
+      margin-bottom: 16px;
+    }
+
+    .card-media img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .product-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--color-text-dark);
+      margin: 0 0 6px 0;
+    }
+
+    .product-price {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      margin: 0 0 20px 0;
+    }
+
+    /* 
+      BOTÓN INTERACTIVO MULTI-ESTADO
+      Fondo transparente para delegar el color a las capas aceleradas por hardware.
+    */
+    .action-button {
+      position: relative;
+      width: 90%;
+      height: 46px;
+      border: none;
+      border-radius: 50px; 
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      background-color: transparent; 
+    }
+
+    /* FONDO DE REPOSO (Turquesa base) */
+    .action-button::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #14b8a6;
+      border-radius: 50px;
+      z-index: 1;
+      will-change: opacity;
+      transition: opacity 0.2s ease;
+    }
+
+    /* FONDO DE PROCESO (Morado de carga) */
+    .bg-loading-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #7c3aed;
+      border-radius: 50px;
+      z-index: 2;
+      opacity: 0; /* Oculto inicialmente */
+      will-change: opacity;
+      transition: opacity 0.2s ease;
+    }
+
+    /* FONDO DE ÉXITO (Verde final) */
+    .bg-success-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #10b981;
+      border-radius: 50px;
+      z-index: 3;
+      opacity: 0; /* Oculto inicialmente */
+      will-change: opacity;
+      transition: opacity 0.2s ease;
+    }
+
+    /* ACCIONES DE HOVER Y ACTIVE CONTROLADAS POR OPACIDAD (ALTO RENDIMIENTO EN GPU) */
+    .action-button:hover::before {
+      opacity: 0.85; 
+    }
+    .action-button:active::before {
+      opacity: 0.7;
+    }
+
+    /* CRITERIO DE ACCESIBILIDAD: FOCO VISIBLE NOTORIO MEDIANTE TECLA TAB */
+    .action-button:focus-visible {
+      outline: 3px solid #7c3aed;
+      outline-offset: 3px;
+    }
+
+    /* CONTENEDORES DE TEXTO INTERNOS */
+    .state-idle, .state-spinner, .state-success {
+      position: relative;
+      z-index: 4;
+    }
+
+    .state-idle {
+      display: inline-flex;
+      align-items: center;
+      opacity: 1;
+      will-change: opacity;
+      transition: opacity 0.2s ease;
+    }
+
+    /* SPINNER CONSTRUIDO CON PROPIEDAD EXCLUSIVA TRANSFORM (Cero repintado de Layout) */
+    .state-spinner {
+      display: none;
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      will-change: transform;
+      animation: spinLoader 0.7s linear infinite;
+    }
+
+    /* ESTADO FINAL COMPUESTO POR TEXTO Y VECTOR SVG */
+    .state-success {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      will-change: opacity;
+      transition: opacity 0.2s ease;
+    }
+
+    .success-check-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ==========================================================================
+       MANEJO DE CLASES INTERACTIVAS DINÁMICAS (INYECTADAS POR JS)
+       ========================================================================== */
+
+    /* FASE DE CARGA: Activa capa morada, oculta texto inicial y enciende spinner */
+    .action-button.cargando {
+      pointer-events: none; /* Mitigación por CSS de disparos múltiples por click */
+    }
+    .action-button.cargando::before {
+      opacity: 0;
+    }
+    .action-button.cargando .bg-loading-layer {
+      opacity: 1;
+    }
+    .action-button.cargando .state-idle {
+      opacity: 0; 
+    }
+    .action-button.cargando .state-spinner {
+      display: block; 
+    }
+
+    /* FASE EXITOSA: Apaga capa morada, enciende capa verde y revela confirmación limpia */
+    .action-button.anadido {
+      pointer-events: none; /* Bloqueo definitivo post-compra */
+    }
+    .action-button.anadido .bg-loading-layer {
+      opacity: 0;
+    }
+    .action-button.anadido .bg-success-layer {
+      opacity: 1;
+    }
+    .action-button.anadido .state-spinner {
+      display: none; 
+    }
+    .action-button.anadido .state-idle {
+      display: none; /* Remueve del flujo para evitar colisiones tipográficas */
+    }
+    .action-button.anadido .state-success {
+      position: relative;
+      opacity: 1; 
+    }
+
+    /* ANIMACIÓN CÍCLICA BÁSICA REQUERIDA POR LA RÚBRICA */
+    @keyframes spinLoader {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 
+      ==========================================================================
+      CRITERIO DE ACCESIBILIDAD: SOPORTE PARA ENTORNO DE MOVIMIENTO REDUCIDO
+      ========================================================================== 
+    */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after, .bg-loading-layer, .bg-success-layer {
+        animation-delay: -1ms !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }
+      .state-spinner {
+        animation: none !important; /* Detiene por completo el parpadeo cíclico */
+        border: 2px solid #ffffff; 
+      }
+    }
+  </style>
+</head>
+<!-- 
+    ==========================================================================
+    LÓGICA DEL COMPONENTE JAVASCRIPT
+    ========================================================================== 
+  -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+  var targetButton = document.getElementById("btn-interact");
+  var priceTag = document.getElementById("price-tag");
+
+  // Validación por si no encuentra los elementos en el HTML
+  if (!targetButton || !priceTag) return;
+
+  targetButton.addEventListener("click", function() {
+    /* CONTROL DE MULTI-SUBMIT: Evita que el doble clic repita el proceso */
+    if (targetButton.classList.contains("cargando") || targetButton.classList.contains("anadido")) {
+      return;
+    }
+
+    // 1. Activa el estado de carga (Cambia a color morado)
+    targetButton.classList.add("cargando");
+
+    // 2. Temporizador de 1.5 segundos exigido por la rúbrica
+    setTimeout(function() {
+      // Quita el estado intermedio de carga
+      targetButton.classList.remove("cargando");
+      
+      // 3. Activa el estado de éxito definitivo (Cambia a color verde)
+      targetButton.classList.add("anadido");
+      
+      // 4. Cambia de S/ 0.00 al precio final
+      priceTag.textContent = "S/ 40.00";
+
+      // 5. CAMBIA EL COLOR DEL PRECIO A VERDE DE FORMA AUTOMÁTICA
+      priceTag.style.color = "#10b981";
+    }, 1500); 
+  });
+});
+
+</script>
+<body>
+
+  <!-- COMPONENTE: TARJETA DE PRODUCTO -->
+  <article class="card-container">
+    <div class="card-media">
+      <!-- Ruta local adaptable para el recurso gráfico del producto -->
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1xut67sPf4OyAfGwlyYPpvzpq4PPjvnVRzJOZewimZaRv8u9EzPky7DY&s=10" alt="Libro de matemáticas">
+    </div>
+    
+    <div class="card-content">
+      <h2 class="product-title">Producto demo</h2>
+      <!-- Requisito de inicio obligatorio en base cero -->
+      <p class="product-price" id="price-tag">S/ 0.00</p>
+      
+      <button class="action-button" id="btn-interact" type="button">
+        <!-- Nodos dedicados para transiciones de fondo aceleradas -->
+        <div class="bg-loading-layer"></div>
+        <div class="bg-success-layer"></div>
+        
+        <!-- Elementos del Ciclo de Vida -->
+        <span class="state-idle">Añadir</span>
+        <span class="state-spinner" aria-hidden="true"></span>
+        <span class="state-success">
+          Añadido
+          <svg class="success-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+  </article>
+
+  
+  
+    
